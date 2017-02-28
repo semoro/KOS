@@ -1,10 +1,10 @@
-vm-gdb: install-kernel umount
+vm-gdb: prepare-disk-for-run
 	qemu-system-x86_64 -drive format=raw,file=build/disk.img -s -S
-
-vm: install-kernel umount
+vm: prepare-disk-for-run
 	qemu-system-x86_64 -drive format=raw,file=build/disk.img
 
-umount: lodel-disk-img
+prepare-disk-for-run: install-kernel install-grub-config umount
+umount: umount-disk-img lodel-disk-img 
 umount-disk-img:
 	sudo umount /tmp/mnt/disk_img || /bin/true \
 	&& sync
@@ -25,7 +25,7 @@ losetup-disk-img:
 	sudo losetup /dev/loop0 build/disk.img \
 	&& sudo losetup /dev/loop1 build/disk.img -o 1048576
 
-lodel-disk-img: umount-disk-img
+lodel-disk-img: 
 	sudo losetup -d /dev/loop0 || /bin/true \
 	&& sudo losetup -d /dev/loop1 || /bin/true
 
@@ -39,26 +39,36 @@ part-disk-img: create-disk-img
 create-disk-img: 
 	dd if=/dev/zero of=build/disk.img bs=512 count=131072
 
+install-grub-config: grub/grub.cfg
+	cp grub /tmp/mnt/disk_img/boot -r 
 verify-kernel:
 	grub-file --is-x86-multiboot build/kernel.bin
 install-kernel: kernel.bin verify-kernel mount-disk-img 
-	cp grub /tmp/mnt/disk_img/boot -r \
-	&& cp build/kernel.bin /tmp/mnt/disk_img/boot/ktkernel.bin \
+	cp build/kernel.bin /tmp/mnt/disk_img/boot/ktkernel.bin \
 	&& sync
-	
-kernel.bin: loader.o main.bc.o xpc.bc.o
-	ld -m elf_i386 -T linker.ld -o build/$@ build/loader.o build/main.bc.o build/xpc.bc.o 
+.PHONY: vm-gdb vm prepare-disk-for-run umount umount-disk-img install-grub mount-disk-img format-disk-img losetup-disk-img lodel-disk-img part-disk-img create-disk-img install-grub-config verify-kernel install-kernel kernel
 
-loader.o: 
-	as --32 -o build/loader.o loader/loader.s
+VPATH = build
 
-main.bc:
-	konanc kernel/main.kt -nolink -o build/main.bc 
-main.bc.o: main.bc
-	llc build/main.bc -o build/main.bc.o -filetype=obj -march=x86 -code-model=kernel
-xpc.bc: 
-	clang -S -emit-llvm kernel/c/vga_out.c -o build/xpc.bc
-xpc.bc.o: xpc.bc
-	llc build/$^ -o build/$@ -filetype=obj -march=x86 -code-model=kernel
-runtime.bc.o: 
-	llc /fastspace/kotlin-native/dist/lib/host/runtime.bc -o build/$@ -filetype=obj -march=x86 -code-model=kernel
+kernel.bin: kernel kernel/build/kernel.bin
+	cp kernel/build/kernel.bin build/
+
+kernel:
+	$(MAKE) -C $@ all
+
+#kernel.bin: loader.o main.bc.o xpc.bc.o
+# 	ld -m elf_i386 -T linker.ld -o build/$@ build/loader.o build/main.bc.o build/xpc.bc.o 
+# 
+# loader.o: 
+# 	as --32 -o build/loader.o loader/loader.s
+# 
+# main.bc:
+# 	konanc kernel/main.kt -nolink -o build/main.bc 
+# main.bc.o: main.bc
+# 	llc build/main.bc -o build/main.bc.o -filetype=obj -march=x86 -code-model=kernel
+# xpc.bc: 
+# 	clang -S -emit-llvm kernel/c/vga_out.c -o build/xpc.bc
+# xpc.bc.o: xpc.bc
+# 	llc build/$^ -o build/$@ -filetype=obj -march=x86 -code-model=kernel
+# runtime.bc.o: 
+# 	llc /fastspace/kotlin-native/dist/lib/host/runtime.bc -o build/$@ -filetype=obj -march=x86 -code-model=kernel
