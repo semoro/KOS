@@ -1,27 +1,43 @@
- /*fun print(s: CharArray, p: Byte) {
-     var i = 0
-     for(c in s){
-        xpc(c.toByte(), 0x7, (p + i++).toByte())
-     }
- }
- */
+import konan.SymbolName
+import kotlinx.cinterop.*
+
+
+fun kernelMain() {
+    
+    print("Hello, world!", 0x7, 0)
+    for(i in 0..10)
+        print("Meow!", 0x7, 0)
+    
+    hangPlayinWithNumbers()
+}
+
+fun hangPlayinWithNumbers() {
+    var j = 0
+    while(true){
+        j++;
+        var k = 0
+        while(k++ < 10)
+            vgaTextmodeWrite(' '.toByte(), 0x7, 80 + k)
+        printNumber(j, 80 + 10)
+    }
+}
  
- fun kernelMain() {
-     var i = 0;
-     xpc('H'.toByte(), 0x7, i++)
-     xpc('e'.toByte(), 0x7, i++)
-     xpc('l'.toByte(), 0x7, i++)
-     xpc('l'.toByte(), 0x7, i++)
-     xpc('o'.toByte(), 0x7, i++)
-     xpc(' '.toByte(), 0x7, i++)
-     xpc('W'.toByte(), 0x7, i++)
-     xpc('o'.toByte(), 0x7, i++)
-     xpc('r'.toByte(), 0x7, i++)
-     xpc('l'.toByte(), 0x7, i++)
-     xpc('d'.toByte(), 0x7, i++)
-     xpc('!'.toByte(), 0x7, i++)
-     while(true){}
- }
+fun print(s: String, attr: Byte, pos: Int) {
+    var i = 0
+    while(i < s.length) {
+        vgaTextmodeWrite(s[i].toByte(), attr, pos + i++)
+    }
+}
+
  
- @SymbolName("xpc")
- external fun xpc(c: Byte, attr: Byte, pos: Int)
+@SymbolName("vga_textmode_write")
+external fun vgaTextmodeWrite(c: Byte, attr: Byte, pos: Int)
+
+@SymbolName("vga_textmode_print_int")
+external fun printNumber(i: Int, pos: Int)
+ 
+@SymbolName("malloc")
+external fun malloc(s: Int): Int
+
+@SymbolName("static_alloc")
+external fun staticAlloc(addr: Int): NativePtr
