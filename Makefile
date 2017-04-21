@@ -1,10 +1,7 @@
-vm-gdb: prepare-disk-for-run build/nullcallbp
-	qemu-system-x86_64 -drive format=raw,file=build/disk.img -m 512M -s -S & \
-	bash -c 'breakOn=`nm kernel/build/kernel.bin | grep Main | awk "{print \\$$1}"`; echo $$breakOn; \
-	konsole -e gdb -x gdbinit -ex "hbreak *0x$$breakOn"'
+vm-gdb: prepare-disk-for-run null_call_breakpoints manual_breakpoints
+	qemu-system-x86_64 -drive format=raw,file=build/disk.img -m 512M -s -monitor telnet:127.0.0.1:1235,server,nowait & \
+	bash -c 'konsole -e gdb -x gdbinit'
 	
-build/nullcallbp: prepare-disk-for-run
-	objdump -d kernel/build/kernel.bin | grep "call   0" | awk "{print \$$1}" | sed -e "s/\([a-f0-9]*\):/hbreak *0x\1/g" > build/nullcallbp
 
 vm-db: prepare-disk-for-run
 	qemu-system-x86_64 -drive format=raw,file=build/disk.img -m 512M -s -S
@@ -55,16 +52,24 @@ verify-kernel:
 install-kernel: kernel.bin verify-kernel mount-disk-img 
 	cp build/kernel.bin /tmp/mnt/disk_img/boot/ktkernel.bin \
 	&& sync
-.PHONY: vm-gdb vm prepare-disk-for-run umount umount-disk-img install-grub mount-disk-img format-disk-img losetup-disk-img lodel-disk-img part-disk-img create-disk-img install-grub-config verify-kernel install-kernel kernel
+.PHONY: vm-gdb vm prepare-disk-for-run umount umount-disk-img install-grub mount-disk-img format-disk-img losetup-disk-img lodel-disk-img part-disk-img create-disk-img install-grub-config verify-kernel install-kernel kernel/build/kernel.bin
 
 VPATH = build
 
+kernel.lst: kernel.bin
+	nm build/kernel.bin > build/kernel.lst
+	
+null_call_breakpoints: kernel.bin
+	objdump -d kernel/build/kernel.bin | grep "callq  0" | awk "{print \$$1}" | sed -e "s/\([a-f0-9]*\):/hbreak *0x\1/g" > build/$@
+	
+manual_breakpoints: kernel.lst
+	python setBreakpoints.py > build/$@
 
-kernel.bin: kernel kernel/build/kernel.bin
+kernel.bin: kernel/build/kernel.bin
 	cp kernel/build/kernel.bin build/
 
-kernel:
-	$(MAKE) -C $@ clean all
+kernel/build/kernel.bin:
+	$(MAKE) -C kernel clean all
 
 #kernel.bin: loader.o main.bc.o xpc.bc.o
 # 	ld -m elf_i386 -T linker.ld -o build/$@ build/loader.o build/main.bc.o build/xpc.bc.o 

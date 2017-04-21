@@ -3,12 +3,15 @@ import kotlinx.cinterop.*
 
 
 fun kernelMain() {
-    
+    setupIDT();
+    initializeMemoryAllocation();
     print("Hello, world!", 0x7, 0)
+
+    
     for(i in 0..10)
         print("Meow!", 0x7, 0)
-    
     hangPlayinWithNumbers()
+    
 }
 
 fun hangPlayinWithNumbers() {
@@ -41,3 +44,9 @@ external fun malloc(s: Int): Int
 
 @SymbolName("static_alloc")
 external fun staticAlloc(addr: Int): NativePtr
+
+
+@SymbolName("setup_idt")
+external fun setupIDT()
+@SymbolName("initialize_memory_allocation")
+external fun initializeMemoryAllocation()

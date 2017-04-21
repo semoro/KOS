@@ -1,3 +1,4 @@
+.code32
 .text
 .global loader
 # Declare constants for the multiboot header.
@@ -29,14 +30,58 @@
 # stack is properly aligned and failure to align the stack will result in
 # undefined behavior.
 .section .bss
+
+.global idt_first_entry
+.type idt_first_entry, @common
+
+idt_first_entry:
+.skip 16 * 256
+
+
+ 
+
+
 .align 16
 stack_bottom:
 .skip 16384 # 16 KiB
 stack_top:
 
+free_space_start:
+
+.global free_space_start
 # The linker script specifies _start as the entry point to the kernel and the
 # bootloader will jump to this position once the kernel has been loaded. It
 # doesn't make sense to return from this function as the bootloader is gone.
+
+.section .rodata
+
+GDT64:                           # Global Descriptor Table (64-bit).
+#.equ Null, $ - $GDT64         # The null descriptor.
+    .short 0                         # Limit (low).
+    .short 0                         # Base (low).
+    .byte 0                         # Base (middle)
+    .byte 0                         # Access.
+    .byte 0                         # Granularity.
+    .byte 0                         # Base (high).
+#.equ Code, $ - $GDT64         # The code descriptor.
+    .short 0                         # Limit (low).
+    .short 0                         # Base (low).
+    .byte 0                         # Base (middle)
+    .byte 0b10011010                 # Access (exec/read).
+    .byte 0b00100000                 # Granularity.
+    .byte 0                         # Base (high).
+#.equ Data, $ - $GDT64         # The data descriptor.
+    .short 0                         # Limit (low).
+    .short 0                         # Base (low).
+    .byte 0                         # Base (middle)
+    .byte 0b10010010                 # Access (read/write).
+    .byte 0b00000000                 # Granularity.
+    .byte 0                         # Base (high).
+GDTPointer:                    # The GDT-pointer.
+    .short (GDTPointer - GDT64 - 1)             # Limit.
+    .quad GDT64                     # Base.
+
+
 .section .text
 .global abort
 .type abort, @function
@@ -44,8 +89,31 @@ stack_top:
 .global _start
 .type _start, @function
 
-    
+
+CheckIsLongModeSupported:
+.code32
+        mov  $0x80000000, %eax    
+        cpuid                  
+        cmp $0x80000001, %eax    
+        jb NoLongMode     
+        
+        mov  $0x80000001, %eax  
+        cpuid                 
+        testl $(1 << 29), %edx 
+        jz NoLongMode
+        ret
+
+NoLongMode: 
+        cli
+1:	hlt
+	jmp 1b
+	
+	
+.text
+
+
 _start:
+.code32
 	# The bootloader has loaded us into 32-bit protected mode on a x86
 	# machine. Interrupts are disabled. Paging is disabled. The processor
 	# state is as defined in the multiboot standard. The kernel has full
@@ -77,6 +145,72 @@ _start:
 	# aligned above and we've since pushed a multiple of 16 bytes to the
 	# stack since (pushed 0 bytes so far) and the alignment is thus
 	# preserved and the call is well defined.
+        call CheckIsLongModeSupported
+	
+	mov %cr0, %eax                                   
+        and $0b01111111111111111111111111111111, %eax   
+        mov %eax, %cr0 
+	
+        mov $0x1000, %edi     # Set the destination index to 0x1000.
+        mov  %edi, %cr3       # Set control register 3 to the destination index.
+        xor %eax, %eax       # Nullify the A-register.
+        mov $4096, %ecx       # Set the C-register to 4096.
+        rep stos %eax,%es:(%edi)          # Clear the memory.
+        mov %cr3, %edi        # Set the destination index to control register 3.
+	movl   $0x2003,(%edi)
+	
+	add    $0x1000,%edi
+	
+        movl   $0x3003,(%edi)
+        add    $0x1000,%edi
+        
+        movl   $0x4003,(%edi)
+        movl   $0x5003,8(%edi)
+        add    $0x1000,%edi
+        
+       
+        mov    $0x3,%ebx
+        mov    $0x400,%ecx
+
+
+SetEntry:
+        mov    %ebx,(%edi)
+        add    $0x1000,%ebx
+        add    $0x8,%edi
+        loop   SetEntry
+
+        
+        
+        mov    %cr4,%eax
+        or     $0x20,%eax
+        mov    %eax,%cr4
+
+        mov    $0xC0000080,%ecx
+        rdmsr  
+        or     $(1 << 8),%eax
+        wrmsr 
+
+        mov    %cr0,%eax
+        or     $(1 << 31),%eax
+        mov    %eax,%cr0
+
+
+Pre64:
+        lgdt  GDTPointer
+        ljmp  $0x0008, $Realm64
+
+
+Realm64:
+        .code64
+        cli    
+        mov    $0x10,%ax
+        mov    %eax,%ds
+        mov    %eax,%es
+        mov    %eax,%fs
+        mov    %eax,%gs
+        mov    %eax,%ss
+	call EnableSSE
+	
 	call "kfun:kernelMain()"
 
 	# If the system has nothing more to do, put the computer into an
@@ -89,6 +223,18 @@ _start:
 	#    Since they are disabled, this will lock up the computer.
 	# 3) Jump to the hlt instruction if it ever wakes up due to a
 	#    non-maskable interrupt occurring or due to system management mode.
+	
+EnableSSE: 
+.code32
+                                #now enable SSE and the like
+        movl %cr0, %eax 
+        and $0xFFFB, %ax		#clear coprocessor emulation CR0.EM
+        or $0x2, %ax	        #set coprocessor monitoring  CR0.MP
+        movl %eax, %cr0
+        movl %cr4, %eax
+        or $(3 << 9), %ax		#set CR4.OSFXSR and CR4.OSXMMEXCPT at the same time
+        movl %eax, %cr4
+        ret
 abort:
 	cli
 1:	hlt
