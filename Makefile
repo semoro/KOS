@@ -69,7 +69,7 @@ kernel.bin: kernel/build/kernel.bin
 	cp kernel/build/kernel.bin build/
 
 kernel/build/kernel.bin:
-	$(MAKE) -C kernel clean all
+	$(MAKE) -C kernel all
 
 #kernel.bin: loader.o main.bc.o xpc.bc.o
 # 	ld -m elf_i386 -T linker.ld -o build/$@ build/loader.o build/main.bc.o build/xpc.bc.o 
