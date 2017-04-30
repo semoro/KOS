@@ -1,38 +1,87 @@
 #include "../vga/utils.h"
 
+#include "inttypes.h"
+
 void* static_alloc(void* position) {
     return position;
 }
 
 void* free_space_start;
 
-int allocPtr = 0;
+uint64_t allocPtr = 0;
 
 void initialize_memory_allocation() {
     allocPtr = &free_space_start;
 }
 
-int allocInfo = 0;
+uint64_t allocated = 0;
+uint64_t allocations = 0;
 
-int malloc(int size) {
-    int tmp = allocPtr;
-    vga_textmode_print("Alloc ", 0x7, 80 * 21 + 17 * (allocInfo % 5));
-    vga_textmode_print_int(tmp, 80 * 21 + 16 + 17 * (allocInfo++ % 5));
-    //AssertionFailedPx("", "Alloc has been done");
+
+void printUsedMemory() {
+    vga_textmode_print("Used mem: ", 0x7, 80 * 20);
+    double mem = allocated;
+    int level = 0;
+    while (mem > 1024) {
+        mem /= 1024.0;
+        level++;
+    }
+    vga_textmode_print_float(mem, 0x7, 80 * 20 + 10);
+    switch (level) {
+        case 0: 
+            vga_textmode_print("B", 0x7, 80 * 20 + 18);
+            break;
+        case 1: 
+            vga_textmode_print("KiB", 0x7, 80 * 20 + 18);
+            break;
+        case 2: 
+            vga_textmode_print("MiB", 0x7, 80 * 20 + 18);
+            break;
+        case 3:
+            vga_textmode_print("GiB", 0x7, 80 * 20 + 18);
+            break;
+        case 4:
+            vga_textmode_print("TiB", 0x7, 80 * 20 + 18);
+            break;
+    }
+    
+}
+
+uint64_t malloc(uint64_t size) {
+    uint64_t tmp = allocPtr;
+    allocated += size;
+    allocations++;
+    
+    printUsedMemory();
+    vga_textmode_print("Allocations: ", 0x7, 80 * 20 + 30);
+    vga_textmode_print_int(allocations, 0x7, 80 * 20 + 30 + 13);
+    
+    vga_textmode_print("Alloc ", 0x7, 80 * 21);
+    vga_textmode_print_ptr(tmp, 0x7, 80 * 21 + 6);
+    
     allocPtr += size;
     return tmp;
 }
 
-int calloc(int size, int number) {
+uint64_t calloc(uint64_t size, uint64_t number) {
     char* ptr = malloc(size * number);
-    for(int i = 0; i < size * number; i ++)
+    for(uint64_t i = 0; i < size * number; i ++)
         *(ptr+i) = 0;
     return ptr;
 }
 
 void free(void* ptr) {
     vga_textmode_print("Free ", 0x7, 80 * 20);
-    vga_textmode_print_int(ptr, 80 * 20 + 16);
+    vga_textmode_print_ptr(ptr, 0x7, 80 * 20 + 5);
+}
+
+void * memset(void *ptr, int value, uint64_t num) {
+    uint8_t fill = value;
+    void* end = ptr + num;
+    for(uint8_t *tptr = ptr; tptr != end; tptr++) {
+        *tptr = value;
+    }
+    return ptr;
 }
 /*
 typedef unsigned long uint64_t;
@@ -58,3 +107,7 @@ void setupPAE() {
 }
 
 */
+
+char* setlocale (int category, const char* locale) {
+    return 0x1;
+}

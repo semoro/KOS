@@ -1,32 +1,62 @@
 #include "vga_textmode.h"
+#include "utils.h"
+#include "inttypes.h"
 
-void vga_textmode_print_int(int x, int pos) {
-    if(x == 0)
-        return vga_textmode_write((x % 10) + '0', 0x7, pos);
-    int c = 0;
-    char sign = ' ';
-    if(x < 0){
-        x = -x;
-        sign = '-';
+static inline int powi(int a, int power) {
+    int res = 1;
+    for (int i = 0; i < power; i++) {
+        res *= a;
     }
-    while(x != 0) {
-        vga_textmode_write((x % 10) + '0', 0x7, c-- + pos);
-        x /= 10;
+    return res;
+}
+
+void vga_textmode_print_int(int x, uint8_t attr, int pos) {
+    for (int i = 1; i <= 10; i++) {
+        uint8_t s = (x / powi(10, 10 - i)) % 10;
+        if (s > 0 || i == 10)
+            vga_textmode_write('0' + s, 0x7, pos++);
     }
-    vga_textmode_write(sign, 0x7, c-- + pos);
+} 
+
+void vga_textmode_print_float(float f, uint8_t attr, int pos) {
+    int x = (int)f;
+    for (int i = 1; i <= 10; i++) {
+        uint8_t s = (x / powi(10, 10 - i)) % 10;
+        if (s > 0 || i == 10)
+            vga_textmode_write('0' + s, 0x7, pos++);
+    }
+    vga_textmode_write('.', 0x7, pos++);
+    x = (int)((f - x) * 100);
+    for (int i = 1; i <= 10; i++) {
+        uint8_t s = (x / powi(10, 10 - i)) % 10;
+        if (s > 0 || i == 10)
+            vga_textmode_write('0' + s, 0x7, pos++);
+    }
+} 
+
+void vga_textmode_print_ptr(uint64_t x, uint8_t attr, int pos) {
+    
+    vga_textmode_print("0x", attr, pos);
+    for (int i = 1; i <= 16; i++) {
+        uint8_t s = (x >> (64 - i * 4)) & 0xF;
+        if (s >= 0xA) 
+            vga_textmode_write('A' + (s - 0xA), attr, pos + 1 + i);
+        else 
+            vga_textmode_write('0' + s, attr, pos + 1 + i);
+    }
 } 
 
 
 void vga_textmode_memdump(void* s, void* e, int pos) {
     int c = 0;
-    for(char* p = s; p < e; ++p) {
-        vga_textmode_print_int(*p, (c++ * 4) + pos);
+    for (char* p = s; p < e; ++p) {
+        vga_textmode_print_int(*p, 0x7, (c++ * 4) + pos);
     }
 }
 
-void vga_textmode_print(const char* message, char attr, int pos) {
+void vga_textmode_print(const char* message, uint8_t attr, int pos) {
     int i = 0;
-    while(*(message + i) != 0){
+    while (*(message + i) != 0) {
         vga_textmode_write(*(message + i), attr, pos + i);
         i++;
     }

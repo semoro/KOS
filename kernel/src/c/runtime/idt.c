@@ -2,42 +2,16 @@
 #include "hardware/PIC.h"
 #include "hardware/io.h"
 #include "vga/utils.h"
+#include "interrupts.h"
+#define REGISTER_EX_IRQ(i) fill_idt_entry(entries + i, &handle_ex_##i, 0x0008, 0b10001111)
 
 
 __attribute__ ((interrupt))
 void handle_interrupt(struct interrupt_frame *frame) {
     uint8_t irr = inb(0x20);
     vga_textmode_print("Unsupported IRQ", 0x7, 80 * 2);
-    vga_textmode_print_int(irr, 20 + 80 * 2);
+    vga_textmode_print_int(irr, 0x7, 80 * 2 + 15);
     abort();
-}
-
-__attribute__ ((interrupt))
-void handle_exception_interrupt(struct interrupt_frame *frame) {
-    uint8_t irr = inb(0x20);
-    vga_textmode_print("Exception interrupt", 0x7, 80 * 2);
-    vga_textmode_print_int(irr, 25 + 80 * 2);
-    abort();
-}
-
-
-__attribute__ ((interrupt))
-void handle_interrupt_14(struct interrupt_frame *frame) {
-    vga_textmode_print("Page fault", 0x7, 80 * 2);
-    abort();
-}
-
-
-__attribute__ ((interrupt))
-void handle_interrupt_8(struct interrupt_frame *frame) {
-    vga_textmode_print("Double fault", 0x7, 80 * 2);
-    abort();
-}
-
-__attribute__ ((interrupt))
-void handle_interrupt_X(struct interrupt_frame *frame) {
-    vga_textmode_print("X interrupt", 0x7, 80 * 2);
-    
 }
 
 static inline void lidt(void* base, uint16_t size)
@@ -50,8 +24,7 @@ static inline void lidt(void* base, uint16_t size)
     asm ( "lidt %0" : : "m"(IDTR) );  // let the compiler choose an addressing mode
 }
 
-
-void enable_interrupts() {
+static inline void enable_interrupts() {
     asm ("sti");
 }
 
@@ -62,8 +35,8 @@ void setup_keyboard_interrupt() {
 }
 
 void fill_idt_entry(idt_entry_t *entry, void *handler, uint8_t selector, uint8_t type_attr) {
-    entry->selector = 0x0008;
-    entry->type_attr = 0b10001111; // 1 exists, 00 DPL = ring 0, 0 reserved, 1111 x86 trap gate
+    entry->selector = selector;
+    entry->type_attr = type_attr; // 1 exists, 00 DPL = ring 0, 0 reserved, 1111 x86 trap gate
     
     uint64_t isr_ex = handler;
     entry->offset_1 = 0xFFFF & isr_ex;
@@ -73,25 +46,44 @@ void fill_idt_entry(idt_entry_t *entry, void *handler, uint8_t selector, uint8_t
 void setup_idt() {
     PIC_remap(0x20, 0x28);
     
-    
     idt_entry_t *entries = &idt_first_entry;
-    
-    for(idt_entry_t *first = entries; first != entries + 0x20; first++){
-       fill_idt_entry(first, &handle_exception_interrupt, 0x0008, 0b10001111);
-    }
-  
-    
     
     for(idt_entry_t *first = entries + 0x20; first != entries + 0x28 + 8; first++){
        fill_idt_entry(first, &handle_interrupt, 0x0008, 0b10001110);
     }
     
-    fill_idt_entry(entries + 13, &handle_interrupt_X, 0x0008, 0b10001111);
-    
-    
-    fill_idt_entry(entries + 8, &handle_interrupt_8, 0x0008, 0b10001111);
-    
-    fill_idt_entry(entries + 14, &handle_interrupt_14, 0x0008, 0b10001111);
+    REGISTER_EX_IRQ(0);
+    REGISTER_EX_IRQ(1);
+    REGISTER_EX_IRQ(2);
+    REGISTER_EX_IRQ(3);
+    REGISTER_EX_IRQ(4);
+    REGISTER_EX_IRQ(5);
+    REGISTER_EX_IRQ(6);
+    REGISTER_EX_IRQ(7);
+    REGISTER_EX_IRQ(8);
+    REGISTER_EX_IRQ(9);
+    REGISTER_EX_IRQ(10);
+    REGISTER_EX_IRQ(11);
+    REGISTER_EX_IRQ(12);
+    REGISTER_EX_IRQ(13);
+    REGISTER_EX_IRQ(14);
+    REGISTER_EX_IRQ(15);
+    REGISTER_EX_IRQ(16);
+    REGISTER_EX_IRQ(17);
+    REGISTER_EX_IRQ(18);
+    REGISTER_EX_IRQ(19);
+    REGISTER_EX_IRQ(20);
+    REGISTER_EX_IRQ(21);
+    REGISTER_EX_IRQ(22);
+    REGISTER_EX_IRQ(23);
+    REGISTER_EX_IRQ(24);
+    REGISTER_EX_IRQ(25);
+    REGISTER_EX_IRQ(26);
+    REGISTER_EX_IRQ(27);
+    REGISTER_EX_IRQ(28);
+    REGISTER_EX_IRQ(29);
+    REGISTER_EX_IRQ(30);
+    REGISTER_EX_IRQ(31);
     
     
     lidt(entries, 100 * sizeof(idt_entry_t));

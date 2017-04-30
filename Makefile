@@ -1,5 +1,5 @@
 vm-gdb: prepare-disk-for-run null_call_breakpoints manual_breakpoints
-	qemu-system-x86_64 -drive format=raw,file=build/disk.img -m 512M -s -monitor telnet:127.0.0.1:1235,server,nowait & \
+	qemu-system-x86_64 -cpu Haswell-noTSX -drive format=raw,file=build/disk.img -m 512M -s -monitor telnet:127.0.0.1:1235,server,nowait & \
 	bash -c 'konsole -e gdb -x gdbinit'
 	
 
@@ -7,7 +7,11 @@ vm-db: prepare-disk-for-run
 	qemu-system-x86_64 -drive format=raw,file=build/disk.img -m 512M -s -S
 	
 vm: prepare-disk-for-run
-	qemu-system-x86_64 -drive format=raw,file=build/disk.img -m 512M
+	qemu-system-x86_64 -cpu Haswell-noTSX -drive format=raw,file=build/disk.img -m 512M
+	
+bochs: prepare-disk-for-run
+	bochs -qf bochs-config
+	bash -c 'konsole -e gdb -x gdbinit'
 
 prepare-disk-for-run: install-kernel install-grub-config umount
 umount: umount-disk-img lodel-disk-img 

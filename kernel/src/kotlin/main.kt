@@ -3,13 +3,20 @@ import kotlinx.cinterop.*
 
 
 fun kernelMain() {
+    
     setupIDT();
     initializeMemoryAllocation();
+    
+    val runtimeState = initRuntime();
+    if(runtimeState == nativeNullPtr)
+        abort()
+    
     print("Hello, world!", 0x7, 0)
 
     
     for(i in 0..10)
         print("Meow!", 0x7, 0)
+
     hangPlayinWithNumbers()
     
 }
@@ -21,7 +28,7 @@ fun hangPlayinWithNumbers() {
         var k = 0
         while(k++ < 10)
             vgaTextmodeWrite(' '.toByte(), 0x7, 80 + k)
-        printNumber(j, 80 + 10)
+        printNumber64Hex(j.toLong(), 0x7, 80)
     }
 }
  
@@ -38,6 +45,9 @@ external fun vgaTextmodeWrite(c: Byte, attr: Byte, pos: Int)
 
 @SymbolName("vga_textmode_print_int")
 external fun printNumber(i: Int, pos: Int)
+
+@SymbolName("vga_textmode_print_ptr")
+external fun printNumber64Hex(i: Long, attr: Byte, pos: Int)
  
 @SymbolName("malloc")
 external fun malloc(s: Int): Int
@@ -50,3 +60,10 @@ external fun staticAlloc(addr: Int): NativePtr
 external fun setupIDT()
 @SymbolName("initialize_memory_allocation")
 external fun initializeMemoryAllocation()
+
+@SymbolName("InitRuntime")
+external fun initRuntime(): NativePtr
+
+
+@SymbolName("abort")
+external fun abort()

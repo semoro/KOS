@@ -27,4 +27,3 @@ int Kotlin_Int_plus_Int(int a, int b) {
 int Kotlin_Int_times_Int(int a, int b) {
     return a * b;
 }
-

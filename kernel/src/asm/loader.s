@@ -43,7 +43,7 @@ idt_first_entry:
 
 .align 16
 stack_bottom:
-.skip 16384 # 16 KiB
+.skip 65536 # 64 KiB
 stack_top:
 
 free_space_start:
@@ -54,7 +54,7 @@ free_space_start:
 # doesn't make sense to return from this function as the bootloader is gone.
 
 .section .rodata
-
+.align 16
 GDT64:                           # Global Descriptor Table (64-bit).
 #.equ Null, $ - $GDT64         # The null descriptor.
     .short 0                         # Limit (low).
@@ -64,11 +64,11 @@ GDT64:                           # Global Descriptor Table (64-bit).
     .byte 0                         # Granularity.
     .byte 0                         # Base (high).
 #.equ Code, $ - $GDT64         # The code descriptor.
-    .short 0                         # Limit (low).
+    .short 0xFFFF                       # Limit (low).
     .short 0                         # Base (low).
     .byte 0                         # Base (middle)
     .byte 0b10011010                 # Access (exec/read).
-    .byte 0b00100000                 # Granularity.
+    .byte 0b10101111                 # Granularity.
     .byte 0                         # Base (high).
 #.equ Data, $ - $GDT64         # The data descriptor.
     .short 0                         # Limit (low).

@@ -1,3 +1,4 @@
-hbreak handle_interrupt_X
-hbreak *0x18dd1b
-hbreak *0x18cd6c
+
+
+hbreak handle_ex_6
+
