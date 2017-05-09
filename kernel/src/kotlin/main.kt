@@ -16,8 +16,6 @@ fun kernelMain() {
     
     print("Hello, world!", 0x7, 0)
     
-    
-    
     for(i in 0..10)
         print("Meow!", 0x7, 0)
         
@@ -30,8 +28,6 @@ fun kernelMain() {
     hangPlayinWithNumbers()
     
 }
-
-class SomeShit(val x: ByteArray)
 
 fun fillScreenRect(xRange: IntRange, yRange: IntRange, r: Byte, g: Byte, b: Byte) {
     for(x in xRange)
@@ -215,28 +211,9 @@ external fun prepareFont()
 @SymbolName("draw_text")
 external fun drawText(cstr: NativePtr, x: Short, y: Short, rgb: Int)
 
-fun drawText(text: String?, x: Short, y: Short, rgb: Int) {
+fun drawText(text: String, x: Short, y: Short, rgb: Int) {
     return memScoped {
-            val _cstr = text?.mcstr?.getPointer(memScope).rawValue
+            val _cstr = text.cstr.getPointer(memScope).rawValue
             drawText(_cstr, x, y, rgb)
     }
 }
-
-class CStr(val bytes: ByteArray) : CValues<ByteVar>() {
-    override val size get() = bytes.size + 1
-
-    override fun getPointer(placement: NativePlacement): CPointer<ByteVar> {
-        val result = placement.allocArray<ByteVar>(bytes.size + 1)
-        nativeMemUtils.putByteArray(bytes, result.pointed, bytes.size)
-        result[bytes.size] = 0.toByte()
-        return result
-    }
-}
-    
-val String.mcstr: CValues<ByteVar>
-    get() {
-        val bytes = encodeToUtf8(this)
-
-        return CStr(bytes)
-    }
-
