@@ -4,7 +4,11 @@
 # Declare constants for the multiboot header.
 .set ALIGN,    1<<0             # align loaded modules on page boundaries
 .set MEMINFO,  1<<1             # provide memory map
-.set FLAGS,    ALIGN | MEMINFO  # this is the Multiboot 'flag' field
+
+.set MULTIBOOT_VIDEO_MODE,  0x00000004
+
+
+.set FLAGS,    ALIGN | MEMINFO | MULTIBOOT_VIDEO_MODE  # this is the Multiboot 'flag' field
 .set MAGIC,    0x1BADB002       # 'magic number' lets bootloader find the header
 .set CHECKSUM, -(MAGIC + FLAGS) # checksum of above, to prove we are multiboot
 
@@ -18,6 +22,11 @@
 .long MAGIC
 .long FLAGS
 .long CHECKSUM
+.skip 20
+.long 0
+.long 1024
+.long 768
+.long 24
 
 # The multiboot standard does not define the value of the stack pointer register
 # (esp) and it is up to the kernel to provide a stack. This allocates room for a
@@ -34,11 +43,12 @@
 .global idt_first_entry
 .type idt_first_entry, @common
 
+multiboot_info_ptr:
+.skip 4
+
 idt_first_entry:
 .skip 16 * 256
 
-
- 
 
 
 .align 16
@@ -111,9 +121,8 @@ NoLongMode:
 	
 .text
 
-
-_start:
 .code32
+_start:
 	# The bootloader has loaded us into 32-bit protected mode on a x86
 	# machine. Interrupts are disabled. Paging is disabled. The processor
 	# state is as defined in the multiboot standard. The kernel has full
@@ -124,6 +133,7 @@ _start:
 	# safeguards, no debugging mechanisms, only what the kernel provides
 	# itself. It has absolute and complete power over the
 	# machine.
+	mov %ebx, (multiboot_info_ptr)
 
 	# To set up a stack, we set the esp register to point to the top of our
 	# stack (as it grows downwards on x86 systems). This is necessarily done

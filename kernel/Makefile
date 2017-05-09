@@ -1,11 +1,14 @@
-VPATH = build:src/c:src/kotlin:src/asm
+VPATH = build:src/c:src/kotlin:src/asm:src/res
 
 KOTLIN_RUNTIME_SOURCES = $(wildcard src/kotlin/runtime/*.kt) $(wildcard src/kotlin/runtime/kotlin/*.kt) $(wildcard src/kotlin/runtime/konan/*.kt) $(wildcard src/kotlin/runtime/konan/internal/*.kt)
 KOTLIN_SOURCES = main.kt
 
-ASM_SOURCES = loader.s ceil.s
-C_SOURCES = vga/vga_textmode.c vga/utils.c runtime/static_alloc.c runtime/idt.c hardware/PIC.c hardware/io.c runtime/interrupts.c
-OBJECTS = $(C_SOURCES:.c=.bc.o) $(ASM_SOURCES:.s=.s.o) $(KOTLIN_SOURCES:.kt=.kt.bc.o)
+ASM_SOURCES = loader.s ceil.s floor.s
+C_SOURCES = vga/vga_textmode.c vga/utils.c runtime/static_alloc.c runtime/idt.c hardware/PIC.c hardware/io.c runtime/interrupts.c resource_data.c runtime/mem_utils.c font/font_data.c
+
+IMG_SOURCES = kotlin.dat font/font.dat
+
+OBJECTS = $(C_SOURCES:.c=.bc.o) $(ASM_SOURCES:.s=.s.o) $(KOTLIN_SOURCES:.kt=.kt.bc.o) $(IMG_SOURCES:.dat=.dat.o)
 OBJECTS_LOCATION = $(addprefix build/,${OBJECTS})
 
 LLC_FLAGS = -filetype=obj -march=x86-64 -code-model=kernel
@@ -39,3 +42,5 @@ kernel.bin: $(OBJECTS)
 %.s.o: %.s
 	as $< -o build/$@
 
+%.dat.o: %.dat
+	objcopy -B i386:x86-64 -I binary -O elf64-x86-64 $< build/$@

@@ -17,8 +17,11 @@ void initialize_memory_allocation() {
 uint64_t allocated = 0;
 uint64_t allocations = 0;
 
+const char* clear_line = "                                                                                ";
 
 void printUsedMemory() {
+    
+    vga_textmode_print(clear_line, 0x7, 80 * 20);
     vga_textmode_print("Used mem: ", 0x7, 80 * 20);
     double mem = allocated;
     int level = 0;
@@ -26,6 +29,7 @@ void printUsedMemory() {
         mem /= 1024.0;
         level++;
     }
+    
     vga_textmode_print_float(mem, 0x7, 80 * 20 + 10);
     switch (level) {
         case 0: 
@@ -45,68 +49,48 @@ void printUsedMemory() {
             break;
     }
     
-}
-
-uint64_t malloc(uint64_t size) {
-    uint64_t tmp = allocPtr;
-    allocated += size;
-    allocations++;
     
-    printUsedMemory();
     vga_textmode_print("Allocations: ", 0x7, 80 * 20 + 30);
     vga_textmode_print_int(allocations, 0x7, 80 * 20 + 30 + 13);
     
     vga_textmode_print("Alloc ", 0x7, 80 * 21);
-    vga_textmode_print_ptr(tmp, 0x7, 80 * 21 + 6);
+    vga_textmode_print_ptr(allocPtr, 0x7, 80 * 21 + 6);
     
-    allocPtr += size;
-    return tmp;
+}
+
+uint64_t aligned_alloc(uint64_t size, uint64_t align) {
+    uint64_t addr = ((allocPtr / align) + 1) * align;
+   
+    allocated += addr - allocPtr + size;
+    allocations++;
+    allocPtr = addr + size;
+    printUsedMemory();
+    
+    return addr;
+}
+
+uint64_t malloc(uint64_t size) {
+    return aligned_alloc(size, 64);
 }
 
 uint64_t calloc(uint64_t size, uint64_t number) {
     char* ptr = malloc(size * number);
-    for(uint64_t i = 0; i < size * number; i ++)
-        *(ptr+i) = 0;
-    return ptr;
+    return memset(ptr, 0, size * number);
 }
+
 
 void free(void* ptr) {
-    vga_textmode_print("Free ", 0x7, 80 * 20);
-    vga_textmode_print_ptr(ptr, 0x7, 80 * 20 + 5);
+    vga_textmode_print("Free ", 0x7, 80 * 22);
+    vga_textmode_print_ptr(ptr, 0x7, 80 * 22 + 5);
 }
 
-void * memset(void *ptr, int value, uint64_t num) {
-    uint8_t fill = value;
-    void* end = ptr + num;
-    for(uint8_t *tptr = ptr; tptr != end; tptr++) {
-        *tptr = value;
-    }
-    return ptr;
-}
-/*
-typedef unsigned long uint64_t;
-
-uint64_t page_dir_ptr_tab[4] __attribute__((aligned(0x20)));
-uint64_t page_dir[512] __attribute__((aligned(0x1000)));  // must be aligned to page boundary
-uint64_t page_tab[1024] __attribute__((aligned(0x1000)));
-
-
-void setupPAE() {
-    page_dir_ptr_tab[0] = (uint64_t)&page_dir | 1; // set the page directory into the PDPT and mark it present
-    page_dir[0] = (uint64_t)&page_tab | 3; //set the page table into the PD and mark it present/writable
-    page_dir[1] = (uint64_t)(&page_tab + 512) | 3; //set the page table into the PD and mark it present/writable
-    
-    unsigned int i, address = 0;
-    for(i = 0; i < 1024; i++)
-    {
-        page_tab[i] = address | 3; // map address and mark it present/writable
-        address = address + 0x1000;
-    }
-    	 
-    asm volatile ("movq %%rax, %%cr3" :: "a" (&page_dir_ptr_tab)); // load PDPT into CR3
+void set_pae_table_address(uint32_t addr) {
+    asm volatile ("movq %%rax, %%cr3" :: "a" (addr)); 
 }
 
-*/
+uint32_t get_int_at_addr(void* addr) {
+    return *((uint32_t*)addr);
+}
 
 char* setlocale (int category, const char* locale) {
     return 0x1;
