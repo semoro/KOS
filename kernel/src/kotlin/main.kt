@@ -183,7 +183,6 @@ external fun initializeMemoryAllocation()
 @SymbolName("InitRuntime")
 external fun initRuntime(): NativePtr
 
-
 @SymbolName("abort")
 external fun abort()
 
@@ -203,7 +202,6 @@ external fun memset(ptr: Long, v: Int, size: Long): Long
 
 @SymbolName("memcpy")
 external fun memcpy(dst: Long, src: Long, size: Long): Long
-
 
 @SymbolName("prepare_font")
 external fun prepareFont()
